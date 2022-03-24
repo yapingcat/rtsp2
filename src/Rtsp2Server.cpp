@@ -1,13 +1,14 @@
-#include "Rtsp2Server.h"
-#include "Rtsp2Utility.h"
-
 #include <iostream>
 #include <sstream>
 #include <cassert>
 
+#include "Rtsp2Server.h"
+#include "Rtsp2Utility.h"
+#include "Rtsp2Err.h"
+
 namespace rtsp2
 {
-    int ServerHandle::input(const char* msg,int length)
+    std::error_code ServerHandle::input(const char* msg,int length)
     {
         const uint8_t*p = (const uint8_t*)msg;
         int len = length;
@@ -29,7 +30,7 @@ namespace rtsp2
                 std::tie(ret, channel, packetLength, pkg) = rtpOverRtsp(p, len);
                 if(ret < 0)
                 {
-                    return ret;
+                    return makeError(RTSP2_ERROR::rtsp2_rtp_parser_failed);
                 }
                 else if(ret == 0)
                 {
@@ -41,8 +42,7 @@ namespace rtsp2
             {
                 if((ret = handleRequest(p,len)) < 0 && (ret = handleResponse(p,len)) < 0)
                 {
-                    std::cout<<"parser rtsp msg failed"<<std::endl;
-                    return ret;
+                    return makeError(RTSP2_ERROR::rtsp2_msg_parser_failed);
                 }
                 else if(ret == 0)
                 {
@@ -71,17 +71,19 @@ namespace rtsp2
         {
             cache_.erase(cache_.begin(), cache_.begin() + cache_.size() - len);
         }
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int ServerHandle::sendRtspMessage(RtspRequest req)
+    std::error_code ServerHandle::sendRtspMessage(RtspRequest req)
     {
         currentReq_ = std::move(req);
-        send(req.toString());
-        return 0;
+        currentReq_[RtspMessage::Session] = sessionId_;
+        currentReq_[RtspMessage::CSeq] = std::to_string(randomInt(1000));
+        send(currentReq_.toString());
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int ServerHandle::sendRtpRtcp(int channel,const uint8_t *pkg, std::size_t len)
+    std::error_code ServerHandle::sendRtpRtcp(int channel,const uint8_t *pkg, std::size_t len)
     {
         std::string rtcprtp;
         rtcprtp.resize(len+4);
@@ -91,7 +93,7 @@ namespace rtsp2
         rtcprtp[3] = (uint8_t)(len);
         rtcprtp.replace(4,len,(const char*)pkg,len);
         send(rtcprtp);
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
     bool ServerHandle::verifyAuthParams(const RtspRequest& req)
@@ -126,24 +128,25 @@ namespace rtsp2
     {   
         RtspResponse response;
         auto ret = response.read((const char *)res, len);
-        std::cout<<"ret"<<ret<<std::endl;
         if (ret > 0)
         {
-            if(response.statusCode() == RtspResponse::RTSP_Unauthorized)
-            {
-                if(!needAuth())
-                {
-                    return ret;
-                }    
-                authParam_ = getAuthParam();
-                currentReq_[RtspMessage::Authenticate] = authParam_.credentials();
-                send(currentReq_.toString());
-                return ret;
-            }
+            //  服务端发送request到客户端需要鉴权吗?
+            // if(response.statusCode() == RtspResponse::RTSP_Unauthorized)
+            // {
+            //     if(!needAuth())
+            //     {
+            //         return ret;
+            //     }    
+            //     authParam_ = getAuthParam();
+            //     currentReq_[RtspMessage::Authenticate] = authParam_.credentials();
+            //     send(currentReq_.toString());
+            //     return ret;
+            // }
             if(currentReq_.method() == RtspRequest::OPTIONS) handleOptionResponse(response);
             else if(currentReq_.method() == RtspRequest::ANNOUNCE) handleAnnounceResponse(response);
             else if(currentReq_.method() == RtspRequest::GET_PARAMETER) handleGetParameterResponse(response);
             else if(currentReq_.method() == RtspRequest::SET_PARAMETER) handleSetParameterResponse(response);
+            else if(currentReq_.method() == RtspRequest::TEARDOWN) handleTearDownResponse(response);
         }
         return ret;
     }

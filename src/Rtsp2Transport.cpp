@@ -67,12 +67,12 @@ namespace rtsp2
             else if (startWithString(param,"mode"))
             {
                 char mode[16] = {0};
-                sscanf(param.c_str(),"mode=%s",mode);
-                if(memcpy(mode,"PLAY",4) == 0)
+                sscanf(param.c_str(),"mode=\"%s\"",mode);
+                if(memcmp(mode,"PLAY",4) == 0)
                 {
                     trans.mode = PLAY;
                 }
-                else if(memcpy(mode,"RECORD",6) == 0)
+                else if(memcmp(mode,"RECORD",6) == 0)
                 {
                     trans.mode = RECORD;
                 }

@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <system_error>
 #include "Rtsp2Request.h"
 #include "Rtsp2Response.h"
 #include "Rtsp2Transport.h"
@@ -17,7 +18,7 @@ namespace rtsp2
         virtual ~ServerHandle() = default;
 
     public:
-        int input(const char* msg,int len);
+        std::error_code input(const char* msg,int len);
         
     protected:
 
@@ -50,10 +51,11 @@ namespace rtsp2
         virtual void handleAnnounceResponse(const RtspResponse& res){}
         virtual void handleGetParameterResponse(const RtspResponse& res){}
         virtual void handleSetParameterResponse(const RtspResponse& res){}
+        virtual void handleTearDownResponse(const RtspResponse& res){}
 
         virtual void send(const std::string& msg) = 0;
-        int sendRtspMessage(RtspRequest req);
-        int sendRtpRtcp(int channel,const uint8_t *pkg, std::size_t len);
+        std::error_code sendRtspMessage(RtspRequest req);
+        std::error_code sendRtpRtcp(int channel,const uint8_t *pkg, std::size_t len);
         
     protected:
         virtual bool needAuth() { return false;}

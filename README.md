@@ -19,6 +19,8 @@ rtsp协议栈解析库，当前只解析rtsp(rfc2326)协议，主要是基于[ht
    1. npt
    2. utc
    3. 不支持smpte
+- 支持rtsp服务端发送request到客户端(目前支持TEARDOWN,OPTIONS,ANNOUNCE,GET_PARAMETER,SET_PARAMETER 5种信令)
+- 
 
 ### Build
 ```bash
@@ -144,6 +146,8 @@ class Session : public rtsp2::ServerHandle
 // handleOption handleDescribe handleSetup handlePlay handlePause handleTearDown handleGetParmeters
 // 如果你对rtcp包感兴趣，你需要实现handleRtp，用于处理rtcp包
 // 如果你需要鉴权认证 那么 1. needAuth() 返回 true 2.getAuthParam() 返回鉴权需要的认证信息，用户名密码 realm等
+// 服务端也可以发送request到客户端,调用 sendRtspMessage即可
+// 如果是rtp over rtsp这个模式,需要调用sendRtpRtcp接口封装interleaved 4字节头
 class Session : public rtsp2::ServerHandle
 {
 protected:
@@ -207,6 +211,8 @@ protected:
    {
       //send msg to network
    }
+
+   
 
 private:
    std::string createSessionId()

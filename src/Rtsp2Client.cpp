@@ -4,6 +4,7 @@
 
 #include "Rtsp2Client.h"
 #include "Rtsp2Utility.h"
+#include "Rtsp2Err.h"
 
 namespace rtsp2
 {
@@ -49,7 +50,7 @@ namespace rtsp2
         auth_.password = pwd;
     }
 
-    int Client::input(const char *data, std::size_t length)
+    std::error_code Client::input(const char *data, std::size_t length)
     {
         const uint8_t *p = (const uint8_t *)data;
         int len = length;
@@ -61,7 +62,6 @@ namespace rtsp2
         }
         while (len > 0)
         {
-            std::cout<<__LINE__<<len<<std::endl;
             int ret = 0;
             if (*p == '$' && !needMoreRtspMessage_)
             {
@@ -71,13 +71,11 @@ namespace rtsp2
                 std::tie(ret, channel, packetLength, pkg) = rtpOverRtsp(p, len);
                 if (ret == 0)
                 {
-                    std::cout<<"rtp need more bytes "<<packetLength <<std::endl;
                     break;
                 }
                 else if (ret < 0)
                 {
-                    std::cout<<"parser rtp failed" <<std::endl; 
-                    return ret;
+                    return makeError(RTSP2_ERROR::rtsp2_rtp_parser_failed);
                 }
                 for (auto &&mediaTrans : transports_)
                 {
@@ -91,7 +89,6 @@ namespace rtsp2
                         break;
                     }
                 }
-                std::cout<<ret<<std::endl;
                 p += ret;
                 len -= ret;
             }
@@ -99,28 +96,53 @@ namespace rtsp2
             {
                 RtspResponse res;
                 ret = res.read((const char *)p, len);
-                std::cout<<__LINE__ <<"ret"<<ret<<std::endl;
-                if (ret < 0)
+                if(ret > 0)
                 {
-                    std::cout<<"parser rtsp message failed" <<std::endl; 
-                    return ret;
+                    needMoreRtspMessage_ = false;
+                    auto ec = handleResponse(res);
+                    if(ec)
+                    {
+                        return ec;
+                    }
+                    p += ret;
+                    len -= ret;
+                    break;
                 }
                 else if (ret == 0)
                 {
                     needMoreRtspMessage_ = true;
                     break;
                 }
-                else
+
+                RtspRequest req;
+                ret = req.read((const char *)p, len);
+                if(ret > 0)
                 {
                     needMoreRtspMessage_ = false;
-                    if(handleResponse(res) != 0)
+                    RtspResponse res(RtspMessage::VERSION::RTSP_1_0);
+                    res.setStatusCodeAndReason(RtspResponse::RTSP_OK);
+                    res[RtspMessage::CSeq] = req[RtspMessage::CSeq];
+                    res[RtspMessage::Server] = RtspMessage::Default_SERVER;
+                    res[RtspMessage::Date] = getGMTTime();
+                    if(requestCb_)
                     {
-                        return -1;
+                        requestCb_(req,res);
                     }
-                    std::cout<<__LINE__<<ret<<std::endl;
+                    else
+                    {
+                        res.setStatusCodeAndReason(RtspResponse::RTSP_Not_Implemented);
+                    }
+                    out_(res.toString());
                     p += ret;
                     len -= ret;
+                    break;
                 }
+                else if (ret == 0)
+                {
+                    needMoreRtspMessage_ = true;
+                    break;
+                }
+                return makeError(RTSP2_ERROR::rtsp2_msg_parser_failed);
             }
         }
 
@@ -133,44 +155,43 @@ namespace rtsp2
         }
         else
         {
-            std::cout<<__LINE__<<len<<std::endl;
             cache_.erase(cache_.begin(), cache_.begin() + cache_.size() - len);
         }
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
     
-    int Client::options()
+    std::error_code Client::options()
     {
         auth_.method = RtspRequest::OPTIONS;
         RtspRequest req;
         MakeV1RequstByName(Options,req);
         out_(req.toString());
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::describe()
+    std::error_code Client::describe()
     {
         auth_.method = RtspRequest::DESCRIBE;
         RtspRequest req;
         MakeV1RequstByName(Describe,req);
         out_(req.toString());
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::setup(std::vector<std::tuple<std::string,TransportV1>> transports)
+    std::error_code Client::setup(std::vector<std::tuple<std::string,TransportV1>> transports)
     {
         if(transports.size() == 0)
         {
-            return -1;
+            return makeError(RTSP2_ERROR::rtsp2_need_transport);
         }
 
         transports_ = std::move(transports);
         setupIter_ = transports_.begin();
         setup(std::get<0>(*setupIter_),std::get<1>(*setupIter_));
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::setup(const std::string& media, const TransportV1& transports)
+    std::error_code Client::setup(const std::string& media, const TransportV1& transports)
     {
         auth_.method = RtspRequest::SETUP;
         for(auto && md : sdp_.mediaDescriptions)
@@ -191,15 +212,15 @@ namespace rtsp2
         MakeV1RequstByName(Setup,req);
         req[RtspMessage::Transport] = transports.toString();
         out_(req.toString());
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::play()
+    std::error_code Client::play()
     {
         return play(std::map<std::string,std::string>{});
     }
 
-    int Client::play(const std::map<std::string,std::string>& headFiled)
+    std::error_code Client::play(const std::map<std::string,std::string>& headFiled)
     {
         auth_.method = RtspRequest::PLAY;
         if(isAggregate_)
@@ -209,7 +230,7 @@ namespace rtsp2
             MakeV1RequstByName(Play,req);
             req.addField(headFiled);
             out_(req.toString());
-            return 0;
+            return makeError(RTSP2_ERROR::rtsp2_ok);
         }
         else
         {
@@ -217,12 +238,12 @@ namespace rtsp2
         }
     }
 
-    int Client::play(const std::string& media)
+    std::error_code Client::play(const std::string& media)
     {
        return play(media,std::map<std::string,std::string>{});
     }
 
-    int Client::play(const std::string& media,const std::map<std::string,std::string>& headFiled)
+    std::error_code Client::play(const std::string& media,const std::map<std::string,std::string>& headFiled)
     {
         auth_.method = RtspRequest::PLAY;
         auto found = std::find_if(sdp_.mediaDescriptions.begin(),sdp_.mediaDescriptions.end(),[&media](const MediaDescription& md) {
@@ -238,17 +259,17 @@ namespace rtsp2
 
         if(found == sdp_.mediaDescriptions.end())
         {
-            return -1;
+            return makeError(RTSP2_ERROR::rtsp2_media_not_exist);
         }
         auth_.uri = found->aggregateUrl;
         RtspRequest req;
         MakeV1RequstByName(Play,req);
         req.addField(headFiled);
         out_(req.toString());
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::announce(const std::string &sdp)
+    std::error_code Client::announce(const std::string &sdp)
     {
         processSdp(sdp,auth_.uri);
         auth_.method = RtspRequest::ANNOUNCE;
@@ -257,10 +278,10 @@ namespace rtsp2
         req[RtspMessage::ContentType] = "application/sdp";
         req.addBody(sdp);
         out_(req.toString());
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::record()
+    std::error_code Client::record()
     {
         auth_.method = RtspRequest::RECORD;
         if(isAggregate_)
@@ -274,10 +295,10 @@ namespace rtsp2
         {
             return record(sdp_.mediaDescriptions[mediaStep_++].media.media);
         }
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
     
-    int Client::record(const std::string& media)
+    std::error_code Client::record(const std::string& media)
     {
         auth_.method = RtspRequest::RECORD;
         auto found = std::find_if(sdp_.mediaDescriptions.begin(),sdp_.mediaDescriptions.end(),[&media](const MediaDescription& md) {
@@ -293,17 +314,17 @@ namespace rtsp2
 
         if(found == sdp_.mediaDescriptions.end())
         {
-            return -1;
+            return makeError(RTSP2_ERROR::rtsp2_media_not_exist);;
         }
         auth_.uri = found->aggregateUrl;
         RtspRequest req;
         MakeV1RequstByName(Record,req);
         out_(req.toString());
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
     
 
-    int Client::pause()
+    std::error_code Client::pause()
     {
         auth_.method = RtspRequest::PAUSE;
         if(isAggregate_)
@@ -317,10 +338,10 @@ namespace rtsp2
         {
             return pause(sdp_.mediaDescriptions[mediaStep_++].media.media);
         }
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::pause(const std::string& media)
+    std::error_code Client::pause(const std::string& media)
     {
         auth_.method = RtspRequest::PAUSE;
         auto found = std::find_if(sdp_.mediaDescriptions.begin(),sdp_.mediaDescriptions.end(),[&media](const MediaDescription& md) {
@@ -336,35 +357,35 @@ namespace rtsp2
 
         if(found == sdp_.mediaDescriptions.end())
         {
-            return -1;
+            return makeError(RTSP2_ERROR::rtsp2_media_not_exist);
         }
         auth_.uri = found->aggregateUrl;
         RtspRequest req;
         MakeV1RequstByName(Pause,req);
         out_(req.toString());
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::setParmeters(const string &param)
+    std::error_code Client::setParmeters(const string &param)
     {
         auth_.method = RtspRequest::SET_PARAMETER;
         RtspRequest req;
         MakeV1RequstByName(SetParameter,req);
         req.addBody(param);
         out_(req.toString());
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::getParmeters()
+    std::error_code Client::getParmeters()
     {
         auth_.method = RtspRequest::GET_PARAMETER;
         RtspRequest req;
         MakeV1RequstByName(GetParameter,req);
         out_(req.toString());
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::teardown()
+    std::error_code Client::teardown()
     {
         auth_.method = RtspRequest::TEARDOWN;
         if(isAggregate_)
@@ -378,10 +399,10 @@ namespace rtsp2
         {
             return teardown(sdp_.mediaDescriptions[mediaStep_++].media.media);
         }
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::teardown(const std::string& media)
+    std::error_code Client::teardown(const std::string& media)
     {
         auth_.method = RtspRequest::TEARDOWN;
         auto found = std::find_if(sdp_.mediaDescriptions.begin(),sdp_.mediaDescriptions.end(),[&media](const MediaDescription& md) {
@@ -397,16 +418,16 @@ namespace rtsp2
 
         if(found == sdp_.mediaDescriptions.end())
         {
-            return -1;
+            return makeError(RTSP2_ERROR::rtsp2_media_not_exist);
         }
         auth_.uri = found->aggregateUrl;
         RtspRequest req;
         MakeV1RequstByName(Teardown,req);
         out_(req.toString());
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::pushInterleavedBinaryData(uint8_t channel,const uint8_t *pkg, std::size_t len)
+    std::error_code Client::pushInterleavedBinaryData(uint8_t channel,const uint8_t *pkg, std::size_t len)
     {
         std::string msg(len + 4,0);
         msg[0] = '$';
@@ -415,7 +436,7 @@ namespace rtsp2
         msg[3] = uint8_t(len);
         msg.replace(4,len,(const char*)pkg,len);
         out_(msg);
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
     
     // int Client::sendRequest(RtspRequest& req)
@@ -444,7 +465,8 @@ namespace rtsp2
         return;
     }
 
-    int Client::handleResponse(const RtspResponse &res)
+
+    std::error_code Client::handleResponse(const RtspResponse &res)
     {
         if (res.statusCode() == RtspResponse::RTSP_Unauthorized)
         {
@@ -456,12 +478,12 @@ namespace rtsp2
             {
                 handleUnAuth(res);
             }
-           return 0;
+           return makeError(RTSP2_ERROR::rtsp2_ok);
         }
 
         if(!sessionId_.sessionid.empty() && !res.hasField(RtspMessage::Session))
         {
-            return -1;
+             return makeError(RTSP2_ERROR::rtsp2_session_id_error);
         }
 
         if(auth_.method == RtspRequest::OPTIONS) optionsCb_(*this,res);
@@ -502,19 +524,21 @@ namespace rtsp2
         {
             redirectCb_(*this,res);
         }
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
+    
 
-    int Client::handleDescribeResponse(const RtspResponse &res)
+
+    std::error_code Client::handleDescribeResponse(const RtspResponse &res)
     {
         auto baseurl = lookupBaseUrl(res,auth_.uri);
         processSdp(res.body(),baseurl);
         describeCb_(*this,res,sdp_);
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::handleSetupResponse(const RtspResponse &res)
+    std::error_code Client::handleSetupResponse(const RtspResponse &res)
     {
         std::string mediaName;
         TransportV1 transport;
@@ -522,7 +546,7 @@ namespace rtsp2
         if(res.statusCode() != RtspResponse::RTSP_OK)
         {
             setupCb_(*this,res,sessionId_, mediaName, transport);
-            return 0;
+            return makeError(RTSP2_ERROR::rtsp2_ok);
         }
 
         TransportV1 trans = decodeTransportV1(res[RtspMessage::Transport]);
@@ -537,83 +561,79 @@ namespace rtsp2
         {
             setup(std::get<0>(*setupIter_),std::get<1>(*setupIter_));
         }
-        return 0;
+        return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
-    int Client::handlePlayResponse(const RtspResponse& res)
+    std::error_code Client::handlePlayResponse(const RtspResponse& res)
     {
         if(isAggregate_)
         {
             playCb_(*this,res);
-            return 0;
+            return makeError(RTSP2_ERROR::rtsp2_ok);
         }
 
         if(res.statusCode() != RtspResponse::RTSP_OK || mediaStep_ >= sdp_.mediaDescriptions.size())
         {
             playCb_(*this,res);
-            return 0;
+            return makeError(RTSP2_ERROR::rtsp2_ok);
         }
         else
         {
-            play(sdp_.mediaDescriptions[mediaStep_++].media.media);
-            return 0;
+            return play(sdp_.mediaDescriptions[mediaStep_++].media.media);
         }
     }
 
-    int Client::handleRecordResponse(const RtspResponse &res)
+    std::error_code Client::handleRecordResponse(const RtspResponse &res)
     {
         if(isAggregate_)
         {
             recordCb_(*this,res);
-            return 0;
+            return makeError(RTSP2_ERROR::rtsp2_ok);
         }
         if(res.statusCode() != RtspResponse::RTSP_OK || mediaStep_ >= sdp_.mediaDescriptions.size())
         {
             recordCb_(*this,res);
-            return 0;
+            return makeError(RTSP2_ERROR::rtsp2_ok);
         }
         else
         {
-            record(sdp_.mediaDescriptions[mediaStep_++].media.media);
-            return 0;
+            return record(sdp_.mediaDescriptions[mediaStep_++].media.media);
         }
     }
 
-    int Client::handlePauseResponse(const RtspResponse &res)
+    std::error_code Client::handlePauseResponse(const RtspResponse &res)
     {
         if(isAggregate_)
         {
             pauseCb_(*this,res);
-            return 0;
+            return makeError(RTSP2_ERROR::rtsp2_ok);
         }
         if(mediaStep_ >= sdp_.mediaDescriptions.size())
         {
             pauseCb_(*this,res);
-            return 0;
+            return makeError(RTSP2_ERROR::rtsp2_ok);
         }
         else
         {
-            pause(sdp_.mediaDescriptions[mediaStep_++].media.media);
-            return 0;
+            return pause(sdp_.mediaDescriptions[mediaStep_++].media.media);
         }
     }
 
-    int Client::handleTeardownResponse(const RtspResponse &res)
+    std::error_code Client::handleTeardownResponse(const RtspResponse &res)
     {
         if(isAggregate_)
         {
             teardownCb_(*this,res);
-            return 0;
+            return makeError(RTSP2_ERROR::rtsp2_ok);
         }
         if(mediaStep_ >= sdp_.mediaDescriptions.size())
         {
             teardownCb_(*this,res);
-            return 0;
+            return makeError(RTSP2_ERROR::rtsp2_ok);
         }
         else
         {
-            teardown(sdp_.mediaDescriptions[mediaStep_++].media.media);
-            return 0;
+            return teardown(sdp_.mediaDescriptions[mediaStep_++].media.media);
         }
     }
 

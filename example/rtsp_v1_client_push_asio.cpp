@@ -72,7 +72,7 @@ private:
                 
                 if(!ec)
                 {
-                    if(rtsp2Client.input((const char*)cache.data(),nread) != 0)
+                    if(rtsp2Client.input((const char*)cache.data(),nread))
                     {
                         std::cout<<"input failed" <<std::endl;
                         stop();

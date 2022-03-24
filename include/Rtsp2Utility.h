@@ -44,6 +44,8 @@ namespace rtsp2
     std::string UTCClockToString(uint64_t utc);
     uint64_t parseNPTTime(const std::string& npt);
     std::string NPTTimeToString(uint64_t npt);
+
+    uint16_t randomInt(int max);
     
     class MD5
     {

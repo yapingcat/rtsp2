@@ -32,7 +32,7 @@ public:
             return;
         }
         std::cout<<"read some byte" << nread<<std::endl;
-        if(client->rtspProtocolClient.input(buf->base,nread) != 0) 
+        if(client->rtspProtocolClient.input(buf->base,nread)) 
         {
             std::cout<<"rtsp failed" <<std::endl;
             exit(0);
@@ -95,6 +95,7 @@ public:
         rtspProtocolClient.setRtpCB(std::bind(&RtspClient::OnRtp,this,_1,_2,_3,_4,_5));
         rtspProtocolClient.setOutputCB(std::bind(&RtspClient::OnOutput,this,_1));
         rtspProtocolClient.setAuthFailedCB(std::bind(&RtspClient::OnAuthFailed,this,_1,_2,_3));
+        rtspProtocolClient.setRequestCB(std::bind(&RtspClient::OnRequest,this,_1,_2));
     }
 
     void start()
@@ -205,9 +206,15 @@ private:
         std::cout<<"auth failed: " << username <<" "<< pwd << std::endl; 
     }
 
+    void OnRequest(const rtsp2::RtspRequest& req,rtsp2::RtspResponse& res)
+    {
+        std::cout<<"recv rtsp request\n"
+                << req.toString();
+    }
+
     void OnOutput(const std::string & msg)
     {
-        std::cout<<"send request:\n"
+        std::cout<<"send rtspmessge:\n"
                 <<msg<<std::endl;
         sendlist.push_back(msg);
         if(uv_is_active((uv_handle_t*)&wh))

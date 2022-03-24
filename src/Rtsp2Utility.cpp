@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdio>
+#include <random>
 
 #include "Rtsp2Utility.h"
 
@@ -372,6 +373,12 @@ namespace rtsp2
         return ss.str();
     }
 
+    uint16_t randomInt(int max)
+    {
+        static std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
+        static std::uniform_int_distribution<int> distribution(0, max);
+        return distribution(generator);
+    }
     
 
     uint8_t S[64] = {

@@ -145,6 +145,8 @@ public:
     {
         std::cout<<"recv request:\n"
                 <<req.toString();
+        std::cout<<"tansport \n"
+                << transport.toString()<<std::endl;
         if(transport.proto == UDP)
         {   
             res.setStatusCodeAndReason(RtspResponse::RTSP_Unsupported_Transport);
@@ -170,7 +172,8 @@ public:
     {
         std::cout<<"recv request:\n"
                 <<req.toString();
-        auto url = req.url();
+        url_ = req.url();
+        auto url = url_;
         if(url.back() == '/')
         {
             url.pop_back();
@@ -187,8 +190,15 @@ public:
                 sendRtpRtcp(0,pkg,len);
             });
             uint32_t ts = 0;
+            
             while (!teardown)
             {
+                if(ts > 10000 && startPlay)
+                { 
+                    startPlay = 0;
+                    auto req = makeTeardown(url_);
+                    sendRtspMessage(req);
+                }
                 char *frame;
                 int len;
                 std::tie(frame,len) = source.GetNextFrame();
@@ -215,14 +225,20 @@ public:
     void handleTearDown(const RtspRequest&req,RtspResponse& res)
     {
         std::cout<<"recv request:\n"
-                <<req.toString();
+                 <<req.toString();
         teardown = 1;
     }
     
     void handleRtp(int channel,const uint8_t *pkg, std::size_t len)
     {
         std::cout<<"recv chan" << channel << " length:" << len <<std::endl;
-    };
+    }
+
+    void handleTearDownResponse(const RtspResponse& res)
+    {
+        std::cout<<"recv teardown response \n"
+                 << res.toString() <<std::endl;
+    }
 
     void send(const std::string& msg)
     {
@@ -271,6 +287,7 @@ private:
     char buf[65535];
     uv_buf_t uvbuf;
     std::once_flag flag;
+    std::string url_;
 };
 
 void on_new_connection(uv_stream_t *server, int status)
