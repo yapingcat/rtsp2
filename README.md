@@ -20,6 +20,16 @@ rtsp协议栈解析库，只解析rtsp(rfc2326)协议，主要是基于[http-par
    2. utc
    3. 不支持smpte
 
+### Build
+```bash
+git clone https://github.com/yapingcat/rtsp2.git
+cd rtsp2
+git submodule update --init
+mkdir cmake-build
+cd cmake-build
+cmake .. && make
+```
+
 ### 调用流程  
   
 下面举几个例子简单说明rtsp2的使用流程,更具体的使用请参见example下的例子，里面由分别使用libuv和asio作为网络库开发rtsp客户端和服务端的例子
