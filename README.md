@@ -41,7 +41,7 @@ make asan
 
 ### 调用流程  
   
-下面举几个例子简单说明rtsp2的使用流程,更具体的使用请参见example下的例子，里面由分别使用libuv和asio作为网络库开发rtsp客户端和服务端的例子
+下面举几个例子简单说明rtsp2的使用流程,更具体的使用请参见example下的例子，exmaple目录下有分别使用libuv和asio作为网络库开发的rtsp客户端和服务端例子
 
 1. rtsp拉流客户端
 ```c++
@@ -86,7 +86,7 @@ void OnOption(rtsp2::Client& client, const rtsp2::RtspResponse & res)
 
 //step 3
 //
-//buf是从网络中接受到的数据
+//buf是从网络中接收到的数据
 //调用input方法，送入协议栈解析
 client.input(buf,len)
 
@@ -133,14 +133,13 @@ rtsp2Client.pushInterleavedBinaryData(interleaved,pkg,length);
 
 3. rtsp 拉流服务端
 ```c++
-//服务端和客户端的使用模式不一样，客户端是通过回调函数方式，服务端主要是类多态方式
 
-//step1 你需要定一个rtsp服务端回话类，继承ServerHandle
+// step1 你需要定一个rtsp服务端回话类，继承ServerHandle
 class Session : public rtsp2::ServerHandle
 
-//step2 根据你的需求,实现对应的虚函数
+// step2 根据你的需求,实现对应的虚函数
 // 服务端需要创建session id, 必须要实现createSessionId()接口
-// 必须实现 send(const std::string& msg)接口,在这个接口中你可以把rtsp数据发向网络
+// 必须实现 send(const std::string& msg)接口,在这个接口中你可以把rtsp/rtcp/rtp数据发向网络
 // 你是一个拉流服务端，所以一般情况下你需要实现如下几个处理信令的接口
 // handleOption handleDescribe handleSetup handlePlay handlePause handleTearDown handleGetParmeters
 // 如果你对rtcp包感兴趣，你需要实现handleRtp，用于处理rtcp包
