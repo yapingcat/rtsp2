@@ -19,8 +19,7 @@ rtsp协议栈解析库，当前只解析rtsp(rfc2326)协议，主要是基于[ht
    1. npt
    2. utc
    3. 不支持smpte
-- 支持rtsp服务端发送request到客户端(目前支持TEARDOWN,OPTIONS,ANNOUNCE,GET_PARAMETER,SET_PARAMETER 5种信令)
-- 
+- rtsp服务端发送request到客户端(目前支持TEARDOWN,OPTIONS,ANNOUNCE,GET_PARAMETER,SET_PARAMETER)
 
 ### Build
 ```bash
