@@ -27,7 +27,16 @@ cd rtsp2
 git submodule update --init
 mkdir cmake-build
 cd cmake-build
-cmake .. && make
+cmake ..
+
+#编译release版本
+make 或者 make release
+#编译debug 版本
+make debug 
+#编译example
+make example
+#打开sanitizer
+make asan
 ```
 
 ### 调用流程  

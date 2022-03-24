@@ -219,9 +219,9 @@ public:
         teardown = 1;
     }
     
-    void handleRtp(const std::string& media,int isRtcp,const uint8_t *pkg, std::size_t len)
+    void handleRtp(int channel,const uint8_t *pkg, std::size_t len)
     {
-        std::cout<<"recv " <<media << " " << (isRtcp ? "rtcp" : "rtp") << " length:" << len <<std::endl;
+        std::cout<<"recv chan" << channel << " length:" << len <<std::endl;
     };
 
     void send(const std::string& msg)
