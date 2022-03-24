@@ -8,7 +8,7 @@ namespace rtsp2
 
     void RtspRtpInfo::parse(const std::string& rtpinfo)
     {
-        auto infos = splitString(rtpinfo,{','});
+        auto infos = splitString(rtpinfo,',');
         for(auto && s : infos)
         {
             RtpInfoElement element;
@@ -88,7 +88,7 @@ namespace rtsp2
 
     void Range::parse(const std::string& range)
     {
-        auto ranges = splitString(range,{';'});
+        auto ranges = splitString(range,';');
         for(auto && r : ranges) 
         {
             std::string key = "",value = "";

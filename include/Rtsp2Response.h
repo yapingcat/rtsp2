@@ -38,7 +38,7 @@ namespace rtsp2
         void setReason(const std::string &reason);
         void setStatusCodeAndReason(STATUS_CODE code);
 
-        int read(const char *buf, std::size_t len);
+        int read(const char *buf, std::size_t len) override;
 
         std::string toString() const override;
 
