@@ -2,7 +2,7 @@ rtsp2
 ===========
 
 ### 介绍   
-rtsp协议栈解析库，只解析rtsp(rfc2326)协议，主要是基于[http-parser](https://github.com/yapingcat/http-parser.git)开发(http-parser 是在nodejs/http-parser的基础上增加了rtsp协议的支持,具体代码修改参见commit ),如果想要开发一个完整的rtsp服务端或者客户
+rtsp协议栈解析库，当前只解析rtsp(rfc2326)协议，主要是基于[http-parser](https://github.com/yapingcat/http-parser.git)开发(***http-parser 是在nodejs/http-parser的基础上增加了rtsp协议的支持,具体代码修改参见commit***),如果想要开发一个完整的rtsp服务端或者客户
 端，你还需要一个网络库(libuv,asio ...) 和一个rtp打包解包的库,
 
 ### 支持的rtsp特性
