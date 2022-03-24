@@ -1,6 +1,6 @@
 #include <iostream>
 #include "Rtsp2Message.h"
-#include "3rd/http_parser.h"
+#include "http-parser/http_parser.h"
 
 namespace rtsp2
 {
