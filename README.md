@@ -128,7 +128,7 @@ void OnOption(rtsp2::Client& client, const rtsp2::RtspResponse & res)
    client.announce(sdp);
 }
 
-//如果你的传输通道是rtp over rtsp
+//如果传输通道是rtp over rtsp
 //rtp打包完之后需要调用以下接口
 rtsp2Client.pushInterleavedBinaryData(interleaved,pkg,length);
 ```
@@ -136,22 +136,22 @@ rtsp2Client.pushInterleavedBinaryData(interleaved,pkg,length);
 3. rtsp 拉流服务端
 ```c++
 
-// step1 你需要定一个rtsp服务端回话类，继承ServerHandle
+// step1 需要创建一个rtsp服务端回话类，继承ServerHandle
 class Session : public rtsp2::ServerHandle
 {
 }
-// step2 根据你的需求,实现对应的虚函数
+// step2 根据需求,实现对应的虚函数
 //
 // 服务端需要创建session id, 必须要实现createSessionId()接口
 //
 // 必须实现 send(const std::string& msg)接口,在这个接口中你可以把rtsp/rtcp/rtp数据发向网络
 //
-// 作为拉流服务端，一般情况下你需要实现如下几个处理信令的接口
+// 作为拉流服务端，一般情况下需要实现如下几个处理信令的接口
 // handleOption handleDescribe handleSetup handlePlay handlePause handleTearDown handleGetParmeters
 //
-// 如果你对rtcp包感兴趣，你需要实现handleRtp，用于处理rtcp包
+// 如果对rtcp包感兴趣，你需要实现handleRtp，用于处理rtcp包
 //
-// 如果你需要鉴权认证 那么 
+// 如果需要鉴权认证 那么 
 //  1. needAuth() 返回 true 
 //  2. getAuthParam() 返回鉴权需要的认证信息，用户名密码 realm 等
 //
@@ -163,7 +163,7 @@ class Session : public rtsp2::ServerHandle
 protected:
    int handleOption(const RtspRequest&,RtspResponse& )
    {
-      //你需要设置public 字段
+      //需要设置public 字段
       res[RtspMessage::Public] = "....." 
    }
 
@@ -171,7 +171,7 @@ protected:
    {
       if(获取到了音视频sdp信息)
       {
-         //设置你的sdp信息
+         //设置sdp信息
          res[RtspMessage::ContentType] = "application/sdp";
          std::string sdp = "v=0\r\n"
                            "o=- 0 0 IN IP4 0.0.0.0\r\n"
@@ -188,7 +188,7 @@ protected:
       {
          //如果此时你没有获取sdp信息
          //返回非0，
-         //如果后续你获取到了sdp信息，可以调用sendResponse
+         //如果后续获取到sdp信息，可以调用sendResponse接口发送
          return 1;
       }
    }
@@ -197,8 +197,7 @@ protected:
    {
       //协商传输通道，设置通道参数
       ....set transport parameter
-      //如果不支持request携带的通道参数
-      //设置RTSP_Unsupported_Transport 状态码
+      //如果不支持request携带的通道参数，设置RTSP_Unsupported_Transport 状态码
       res.setStatusCodeAndReason(RtspResponse::RTSP_Unsupported_Transport);
       return 0;
    }
@@ -228,7 +227,7 @@ protected:
 
    void handleRtp(int channel,const uint8_t, std::size_t)
    {
-      //一般你接收到是rtcp rr包,
+      //一般接收到是rtcp rr包,
 
    }
 
@@ -246,7 +245,7 @@ private:
       //第一次setup请求到来时会调用该方法
    }
 
-   //如果你需要鉴权
+   //如果需要鉴权
    bool needAuth() { return true;}
    Authenticate getAuthParam() 
    { 
@@ -266,13 +265,13 @@ private:
 ```c++
 //推流服务端方式和拉流服务端大体一致
 //下面只说明不同之处
-//信令上你需要实现handleAnnounce handleRecord接口
+//信令上需要实现handleAnnounce handleRecord接口
 class PushServer : public rtsp2::ServerHandle
 {
 protected:
     int handleAnnounce(const RtspRequest&req,RtspResponse& res)
     {
-        //一般你需要解析sdp
+        //一般需要解析sdp
         auto sdptxt = req.body();
         sdp_ = parser(sdptxt);
         return 0;
@@ -281,13 +280,13 @@ protected:
     int handleSetup(const RtspRequest&req,TransportV1& transport, RtspResponse& res)
     {
        //协商传输通道,如果是 rtp over rtsp
-       //你需要保存 transport, 然后在handleRtp接口判断 是属于哪个"m="描述媒体的 rtp/rtcp包
+       //需要保存 transport, 然后在handleRtp接口判断 是属于哪个"m="描述媒体的 rtp/rtcp包
        return 0;
     }
 
     int handleRecord(const RtspRequest&req,RtspResponse& res)
     {
-        //如果需要，你可以处理RtpInfo字段
+        //如果需要，可以处理RtpInfo字段
         if(req.hasField(RtspMessage::RTPInfo))
         {
             RtspRtpInfo info;
@@ -299,15 +298,15 @@ protected:
 ```
 5. pipeline
 ```c++
-//已拉流客户端为例
+//以拉流客户端为例
 //在获取到sdp信息之后可以连续发送 setup和play请求,而无需逐个等待每个请求回复，
-//从而较少若干rtt,缩短rtsp回话建立时间,
+//从而减少若干rtt,缩短rtsp回话建立时间,
 void OnDescribe(rtsp2::Client& client, const rtsp2::RtspResponse & res,const rtsp2::Sdp& sdp)
 {
    set transport paramters
    ......
 
-   //startPipeline 和 stopPipeline之间的request,会连续触发output回调,调用方将回调message,发送至网络
+   //startPipeline 和 stopPipeline之间的request,会连续触发output回调,在回调函数中将message发送至网络
    client.startPipeline();
    client.setup(trans);
    client.play();
