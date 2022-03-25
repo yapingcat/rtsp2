@@ -122,15 +122,15 @@ public:
         });
     }
 
-    void handleOption(const RtspRequest&req,RtspResponse& res)
+    int handleOption(const RtspRequest&req,RtspResponse& res)
     {
         std::cout<<"recv request:\n"
                  <<req.toString();
-        res[RtspMessage::Public] = "OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE, ANNOUNCE, RECORD, SET_PARAMETER, GET_PARAMETER";
-        return;
+        res[RtspMessage::Public] = RtspMessage::Default_Public;
+        return 0;
     }
 
-    void handleDescribe(const RtspRequest&req,RtspResponse& res)
+    int handleDescribe(const RtspRequest&req,RtspResponse& res)
     {
         std::cout<<"recv request:\n"
                  <<req.toString();
@@ -139,9 +139,10 @@ public:
                           "m=video 0 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\na=control:trackID=0\r\n";   
         videoTrackId = "trackID=0";
         res.addBody(sdp);
+        return 0;
     }
 
-    void handleSetup(const RtspRequest&req,TransportV1& transport, RtspResponse& res)
+    int handleSetup(const RtspRequest&req,TransportV1& transport, RtspResponse& res)
     {
         std::cout<<"recv request:\n"
                 <<req.toString();
@@ -150,7 +151,7 @@ public:
         if(transport.proto == UDP)
         {   
             res.setStatusCodeAndReason(RtspResponse::RTSP_Unsupported_Transport);
-            return;
+            return 0;
         }
         
         if(req.url().find(videoTrackId) != std::string::npos)
@@ -166,9 +167,10 @@ public:
            res.setStatusCodeAndReason(RtspResponse::RTSP_BAD_REQUEST); 
         }
         interleaved_++;
+        return 0;
     }
 
-    void handlePlay(const RtspRequest&req,RtspResponse& res)
+    int handlePlay(const RtspRequest&req,RtspResponse& res)
     {
         std::cout<<"recv request:\n"
                 <<req.toString();
@@ -193,7 +195,8 @@ public:
             
             while (!teardown)
             {
-                if(ts > 10000 && startPlay)
+                //send teardown request to client
+                if(ts > 20000 && startPlay)
                 { 
                     startPlay = 0;
                     auto req = makeTeardown(url_);
@@ -215,18 +218,21 @@ public:
             }
             close();
         });
+        return 0;
     }
 
-    void handlePause(const RtspRequest&req,RtspResponse& res)
+    int handlePause(const RtspRequest&req,RtspResponse& res)
     {
         startPlay = 0;
+        return 0;
     }
 
-    void handleTearDown(const RtspRequest&req,RtspResponse& res)
+    int handleTearDown(const RtspRequest&req,RtspResponse& res)
     {
         std::cout<<"recv request:\n"
                  <<req.toString();
         teardown = 1;
+        return 0;
     }
     
     void handleRtp(int channel,const uint8_t *pkg, std::size_t len)

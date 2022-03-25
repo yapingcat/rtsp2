@@ -14,6 +14,8 @@ namespace rtsp2
         rtsp2_session_id_error = 203,
         rtsp2_media_not_exist = 204,
         rtsp2_need_transport = 205,
+        rtsp2_pipeline_empty = 206,
+        rtsp2_pipeline_not_found = 207,
     };
 
     std::error_code makeError(RTSP2_ERROR err);

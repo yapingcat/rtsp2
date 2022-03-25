@@ -29,15 +29,15 @@ public:
     }
 
 public:
-    void handleOption(const RtspRequest&req,RtspResponse& res)
+    int handleOption(const RtspRequest&req,RtspResponse& res)
     {
         std::cout<<"recv request:\n"
                  <<req.toString();
-        res[RtspMessage::Public] = "OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE, ANNOUNCE, RECORD, SET_PARAMETER, GET_PARAMETER";
-        return;
+        res[RtspMessage::Public] = RtspMessage::Default_Public;
+        return 0;
     }
 
-    void handleSetup(const RtspRequest&req,TransportV1& transport, RtspResponse& res)
+    int handleSetup(const RtspRequest&req,TransportV1& transport, RtspResponse& res)
     {
         std::cout<<"recv setup request\n"
                  << req.toString();
@@ -51,17 +51,19 @@ public:
                 break;
             }
         }
+        return 0;
     }
 
-    void handleAnnounce(const RtspRequest&req,RtspResponse& res)
+    int handleAnnounce(const RtspRequest&req,RtspResponse& res)
     {
         std::cout<<"recv Announce Requeset\n"
                  <<req.toString();
         auto sdptxt = req.body();
         sdp_ = parser(sdptxt);
+        return 0;
     }
 
-    void handleRecord(const RtspRequest&req,RtspResponse& res)
+    int handleRecord(const RtspRequest&req,RtspResponse& res)
     {
         std::cout<<"recv Record request\n"
                  << req.toString();
@@ -75,12 +77,13 @@ public:
                 std::cout<<"url:" << i.url << " seq:" <<i.seq <<" rtptime:" <<i.rtptime<<std::endl;
             }
         }
+        return 0;
     }
 
 
-    void handleTearDown(const RtspRequest&req,RtspResponse& res)
+    int handleTearDown(const RtspRequest&req,RtspResponse& res)
     {
-
+        return 0;
     }
 
     void handleRtp(int channel,const uint8_t *pkg, std::size_t len)
@@ -98,6 +101,7 @@ public:
                 break;
             }
         }
+        return;
     }
 
 

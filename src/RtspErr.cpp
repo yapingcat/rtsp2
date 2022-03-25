@@ -25,6 +25,10 @@ namespace rtsp2
                 return "rtsp session id is wrong";
             case (int)RTSP2_ERROR::rtsp2_media_not_exist:
                 return "media is not exist";
+            case (int)RTSP2_ERROR::rtsp2_pipeline_empty:
+                return "rtsp request pipeline is empty";
+            case (int)RTSP2_ERROR::rtsp2_pipeline_not_found:
+                return "rtsp request pipeline not found";
             }
             return "";
         }

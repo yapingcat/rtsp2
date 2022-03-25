@@ -7,7 +7,7 @@ rtsp协议栈解析库，当前只解析rtsp(rfc2326)协议，主要是基于[ht
 
 ### 支持的rtsp特性
 
-- client/server (支持客户端和服务端协议栈解析)
+- client/server (支持rtsp客户端和服务端)
 - play/record (推流和拉流模式)
 - basic/digest Authorization
 - sdp解析
@@ -20,6 +20,7 @@ rtsp协议栈解析库，当前只解析rtsp(rfc2326)协议，主要是基于[ht
    2. utc
    3. 不支持smpte
 - rtsp服务端发送request到客户端(目前支持TEARDOWN,OPTIONS,ANNOUNCE,GET_PARAMETER,SET_PARAMETER)
+- 支持Pipelining(参考rfc7826 实现) 
 
 ### Build
 ```bash
@@ -137,67 +138,92 @@ rtsp2Client.pushInterleavedBinaryData(interleaved,pkg,length);
 
 // step1 你需要定一个rtsp服务端回话类，继承ServerHandle
 class Session : public rtsp2::ServerHandle
-
+{
+}
 // step2 根据你的需求,实现对应的虚函数
+//
 // 服务端需要创建session id, 必须要实现createSessionId()接口
+//
 // 必须实现 send(const std::string& msg)接口,在这个接口中你可以把rtsp/rtcp/rtp数据发向网络
-// 你是一个拉流服务端，所以一般情况下你需要实现如下几个处理信令的接口
+//
+// 作为拉流服务端，一般情况下你需要实现如下几个处理信令的接口
 // handleOption handleDescribe handleSetup handlePlay handlePause handleTearDown handleGetParmeters
+//
 // 如果你对rtcp包感兴趣，你需要实现handleRtp，用于处理rtcp包
-// 如果你需要鉴权认证 那么 1. needAuth() 返回 true 2.getAuthParam() 返回鉴权需要的认证信息，用户名密码 realm等
+//
+// 如果你需要鉴权认证 那么 
+//  1. needAuth() 返回 true 
+//  2. getAuthParam() 返回鉴权需要的认证信息，用户名密码 realm 等
+//
 // 服务端也可以发送request到客户端,调用 sendRtspMessage即可
 // 如果是rtp over rtsp这个模式,需要调用sendRtpRtcp接口封装interleaved 4字节头
+
 class Session : public rtsp2::ServerHandle
 {
 protected:
-   void handleOption(const RtspRequest&,RtspResponse& )
+   int handleOption(const RtspRequest&,RtspResponse& )
    {
       //你需要设置public 字段
       res[RtspMessage::Public] = "....." 
    }
 
-   void handleDescribe(const RtspRequest&,RtspResponse& res)
+   int handleDescribe(const RtspRequest&,RtspResponse& res)
    {
-      //设置你的sdp信息
-      res[RtspMessage::ContentType] = "application/sdp";
-      std::string sdp = "v=0\r\n"
-                        "o=- 0 0 IN IP4 0.0.0.0\r\n"
-                        "c=IN IP4 0.0.0.0\r\n"
-                        "t=0 0\r\n"
-                        "a=control:*\r\n"
-                        "m=video 0 RTP/AVP 96\r\n"
-                        "a=rtpmap:96 H264/90000\r\n"
-                        "a=control:trackID=0\r\n";   
-      res.addBody(sdp);
+      if(获取到了音视频sdp信息)
+      {
+         //设置你的sdp信息
+         res[RtspMessage::ContentType] = "application/sdp";
+         std::string sdp = "v=0\r\n"
+                           "o=- 0 0 IN IP4 0.0.0.0\r\n"
+                           "c=IN IP4 0.0.0.0\r\n"
+                           "t=0 0\r\n"
+                           "a=control:*\r\n"
+                           "m=video 0 RTP/AVP 96\r\n"
+                           "a=rtpmap:96 H264/90000\r\n"
+                           "a=control:trackID=0\r\n";   
+         res.addBody(sdp);
+         return 0;
+      }
+      else
+      {
+         //如果此时你没有获取sdp信息
+         //返回非0，
+         //如果后续你获取到了sdp信息，可以调用sendResponse
+         return 1;
+      }
    }
 
-   void handleSetup(const RtspRequest&,TransportV1& , RtspResponse&)
+   int handleSetup(const RtspRequest&,TransportV1& , RtspResponse&)
    {
       //协商传输通道，设置通道参数
       ....set transport parameter
       //如果不支持request携带的通道参数
       //设置RTSP_Unsupported_Transport 状态码
       res.setStatusCodeAndReason(RtspResponse::RTSP_Unsupported_Transport);
+      return 0;
    }
 
-   void handlePlay(const RtspRequest&,RtspResponse&)
+   int handlePlay(const RtspRequest&,RtspResponse&)
    {
       //可以开始推流了
+      return 0;
    }
 
-   void handlePause(const RtspRequest&,RtspResponse&)
+   int handlePause(const RtspRequest&,RtspResponse&)
    {
-
+      return 0;
    }
 
-   void handleTearDown(const RtspRequest&,RtspResponse&)
+   int handleTearDown(const RtspRequest&,RtspResponse&)
    {
       //回话结束
+      return 0;
    }
 
-   void handleGetParmeters(const RtspRequest&,RtspResponse&)
+   int handleGetParmeters(const RtspRequest&,RtspResponse&)
    {
       //GetParmeters方法一般用于保活
+      return 0;
    }
 
    void handleRtp(int channel,const uint8_t, std::size_t)
@@ -232,8 +258,6 @@ private:
       //auth.nonce = Authenticate::createNonce();
       return auth;
    }
-
-   
 }
 
 
@@ -246,20 +270,22 @@ private:
 class PushServer : public rtsp2::ServerHandle
 {
 protected:
-    void handleAnnounce(const RtspRequest&req,RtspResponse& res)
+    int handleAnnounce(const RtspRequest&req,RtspResponse& res)
     {
         //一般你需要解析sdp
         auto sdptxt = req.body();
         sdp_ = parser(sdptxt);
+        return 0;
     }
     
-    void handleSetup(const RtspRequest&req,TransportV1& transport, RtspResponse& res)
+    int handleSetup(const RtspRequest&req,TransportV1& transport, RtspResponse& res)
     {
        //协商传输通道,如果是 rtp over rtsp
        //你需要保存 transport, 然后在handleRtp接口判断 是属于哪个"m="描述媒体的 rtp/rtcp包
+       return 0;
     }
 
-    void handleRecord(const RtspRequest&req,RtspResponse& res)
+    int handleRecord(const RtspRequest&req,RtspResponse& res)
     {
         //如果需要，你可以处理RtpInfo字段
         if(req.hasField(RtspMessage::RTPInfo))
@@ -267,11 +293,27 @@ protected:
             RtspRtpInfo info;
             info.parse(req[RtspMessage::RTPInfo]);
         }
+        return 0;
     }
 }
-
-
 ```
+5. pipeline
+```c++
+//已拉流客户端为例
+//在获取到sdp信息之后可以连续发送 setup和play请求,而无需逐个等待每个请求回复，
+//从而较少若干rtt,缩短rtsp回话建立时间,
+void OnDescribe(rtsp2::Client& client, const rtsp2::RtspResponse & res,const rtsp2::Sdp& sdp)
+{
+   set transport paramters
+   ......
+
+   //startPipeline 和 stopPipeline之间的request,会连续触发output回调,调用方将回调message,发送至网络
+   client.startPipeline();
+   client.setup(trans);
+   client.play();
+   client.stopPipeline();
+}
+``` 
 
 ### 下一步计划
 

@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <unordered_map>
+#include <list>
 #include <functional>
 #include <system_error>
 
@@ -99,6 +100,8 @@ namespace rtsp2
         std::error_code pushInterleavedBinaryData(uint8_t channel,const uint8_t *pkg, std::size_t len);
         //int sendRequest(RtspRequest& req);
 
+        void startPipeline();
+        void stopPipeline(); 
     public:
         
         const Url& url() const{ return url_; }
@@ -120,6 +123,7 @@ namespace rtsp2
         std::error_code handleRecordResponse(const RtspResponse &res);
         std::error_code handlePauseResponse(const RtspResponse &res);
         std::error_code handleTeardownResponse(const RtspResponse &res);
+        std::error_code handlePipelineResponse(const RtspResponse &res);
         void processSdp(const std::string& sdp, std::string& baseUrl);
         
     private:
@@ -137,6 +141,8 @@ namespace rtsp2
         bool needMoreRtspMessage_ = false;
         bool isAggregate_ = false;
         uint32_t mediaStep_ = 0;
+        int pipelinedRequestId_ = 0;
+        std::unordered_map<int, std::list<RtspRequest>> pipelines_;
     };
 } // namespace rtsp2
 

@@ -23,7 +23,9 @@ target_link_libraries(rtsp_v1_server_use_libuv ${LINK_LIB} )
 add_executable(rtsp_v1_client_push_asio rtsp_v1_client_push_asio.cpp rtp_h264_packer.cpp)
 target_link_libraries(rtsp_v1_client_push_asio ${LINK_LIB} )
 
-
 add_executable(rtsp_v1_push_server_asio rtsp_v1_push_server_asio.cpp)
 target_link_libraries(rtsp_v1_push_server_asio ${LINK_LIB} )
+
+add_executable(rtsp_v1_client_pipiline_asio rtsp_v1_client_pipiline_asio.cpp)
+target_link_libraries(rtsp_v1_client_pipiline_asio ${LINK_LIB} )
 

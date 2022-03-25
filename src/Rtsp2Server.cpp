@@ -83,6 +83,28 @@ namespace rtsp2
         return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
+    std::error_code ServerHandle::sendResponse(RtspResponse res)
+    {
+        if(!sessionId_.empty())
+        {
+            res[RtspMessage::Session] = sessionId_;
+        }
+
+        if(pipelineReqests_.empty())
+        {
+            return makeError(RTSP2_ERROR::rtsp2_pipeline_empty);
+        }
+        RtspRequest& req = pipelineReqests_.front();
+        res[RtspMessage::CSeq] = req[RtspMessage::CSeq];
+        if(req.hasField(RtspMessage::PipelinedRequests))
+        {
+            res[RtspMessage::PipelinedRequests] = req[RtspMessage::PipelinedRequests];
+        }
+        send(res.toString());
+        pipelineReqests_.pop_front();
+        return makeError(RTSP2_ERROR::rtsp2_ok);
+    }
+
     std::error_code ServerHandle::sendRtpRtcp(int channel,const uint8_t *pkg, std::size_t len)
     {
         std::string rtcprtp;
@@ -172,6 +194,25 @@ namespace rtsp2
             send(response.toString());
             return ret;
         }
+
+        bool isPipelineRequest = request.hasField(RtspMessage::PipelinedRequests);
+        if(isPipelineRequest)
+        {
+            if(!prePipeRequest_.empty() 
+                && prePipeRequest_[0][RtspMessage::PipelinedRequests] != request[RtspMessage::PipelinedRequests])
+            {
+                prePipeRequest_.pop_back();
+            }
+        }
+        else
+        {
+            if(!prePipeRequest_.empty())
+            {
+                prePipeRequest_.pop_back();
+            }
+        }
+        
+        bool prePipeReqHasSessionId = !prePipeRequest_.empty() && prePipeRequest_[0].hasField(RtspMessage::Session);
         if(request.hasField(RtspMessage::Session))
         {
             if(sessionId_ != request[RtspMessage::Session])
@@ -181,19 +222,41 @@ namespace rtsp2
                 return ret;
             }
         }
-        if(request.method() == RtspRequest::OPTIONS) handleOption(request,response);
-        else if(request.method() == RtspRequest::DESCRIBE) handleDescribe(request,response);
-        else if(request.method() == RtspRequest::SETUP) replaySetup(request,response);
-        else if(request.method() == RtspRequest::PLAY) handlePlay(request,response);
-        else if(request.method() == RtspRequest::PAUSE) handlePause(request,response);
-        else if(request.method() == RtspRequest::TEARDOWN) handleTearDown(request,response);
-        else if(request.method() == RtspRequest::GET_PARAMETER) handleGetParmeters(request,response);
-        else if(request.method() == RtspRequest::SET_PARAMETER) handleSetParmeters(request,response);
-        else if(request.method() == RtspRequest::RECORD) handleRecord(request,response);
-        else if(request.method() == RtspRequest::ANNOUNCE)  handleAnnounce(request,response);
+        else
+        {
+            if(!sessionId_.empty() && (!isPipelineRequest || prePipeReqHasSessionId))
+            {
+                response.setStatusCodeAndReason(RtspResponse::RTSP_Session_Not_Found);
+                send(response.toString());
+                return ret;
+            }
+        }
+
+        int r = 0;
+        if(request.method() == RtspRequest::OPTIONS) r = handleOption(request,response);
+        else if(request.method() == RtspRequest::DESCRIBE) r = handleDescribe(request,response);
+        else if(request.method() == RtspRequest::SETUP) r = replaySetup(request,response);
+        else if(request.method() == RtspRequest::PLAY) r = handlePlay(request,response);
+        else if(request.method() == RtspRequest::PAUSE) r = handlePause(request,response);
+        else if(request.method() == RtspRequest::TEARDOWN) r = handleTearDown(request,response);
+        else if(request.method() == RtspRequest::GET_PARAMETER) r = handleGetParmeters(request,response);
+        else if(request.method() == RtspRequest::SET_PARAMETER) r = handleSetParmeters(request,response);
+        else if(request.method() == RtspRequest::RECORD) r = handleRecord(request,response);
+        else if(request.method() == RtspRequest::ANNOUNCE)  r = handleAnnounce(request,response);
+
+        if(r != 0)
+        {
+            pipelineReqests_.push_back(std::move(request));
+            return ret;
+        }
+
         if(!sessionId_.empty())
         {
             response[RtspMessage::Session] = sessionId_;
+        }
+        if(request.hasField(RtspMessage::PipelinedRequests))
+        {
+            response[RtspMessage::PipelinedRequests] = request[RtspMessage::PipelinedRequests];
         }
         std::cout<<"res:\n"
                     << response.toString()<<std::endl;
@@ -203,16 +266,19 @@ namespace rtsp2
     }
 
 
-    void ServerHandle::replaySetup(const RtspRequest&req,RtspResponse& res)
+    int ServerHandle::replaySetup(const RtspRequest&req,RtspResponse& res)
     {
         if(!req.hasField(RtspMessage::Transport))
         {
             res.setStatusCodeAndReason(RtspResponse::RTSP_Unsupported_Transport);
-            return;
+            return 0;
         }
 
         TransportV1 transport = decodeTransportV1(req[RtspMessage::Transport]);
-        handleSetup(req,transport,res);
+        if(handleSetup(req,transport,res) != 0 )
+        {
+            return -1;
+        }
         if(res.statusCode() == RtspResponse::RTSP_OK)
         {
             res[RtspMessage::Transport] = transport.toString();
@@ -221,6 +287,7 @@ namespace rtsp2
                 sessionId_ = createSessionId();
             }
         }
+        return 0;
     }
 } // namespace rtsp2
 
