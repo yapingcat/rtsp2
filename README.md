@@ -21,6 +21,7 @@ rtsp2
    3. 不支持smpte
 - rtsp服务端发送request到客户端(目前支持TEARDOWN,OPTIONS,ANNOUNCE,GET_PARAMETER,SET_PARAMETER)
 - 支持Pipelining(参考rfc7826 实现) 
+- 支持PLAY_NOTIFY(rfc7826)
 
 ### Build
 ```bash
