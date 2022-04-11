@@ -24,6 +24,7 @@ namespace rtsp2
     const std::string RtspRequest::SET_PARAMETER = "SET_PARAMETER";
     const std::string RtspRequest::REDIRECT = "REDIRECT";
     const std::string RtspRequest::RECORD = "RECORD";
+    const std::string RtspRequest::PLAYNOTIFY = "PLAY_NOTIFY";
 
     RtspRequest::RtspRequest(VERSION ver)
         : RtspRequest(ver, "", "")
@@ -171,5 +172,10 @@ namespace rtsp2
     RtspRequest makeGetParameter(const std::string &url,RtspMessage::VERSION ver)
     {
         return makeRequest(ver, RtspRequest::GET_PARAMETER, url);
+    }
+
+    RtspRequest makePlayNotify(const std::string &url,RtspMessage::VERSION ver)
+    {
+        return makeRequest(ver, RtspRequest::PLAYNOTIFY, url);
     }
 }

@@ -64,6 +64,12 @@ namespace rtsp2
         std::string toString();     
     };
 
+    enum NotifyReasonType
+    {
+        End_of_Stream = 1,
+        Media_Properties_Update = 2,
+        Scale_Change = 3,
+    };
 }
 
 

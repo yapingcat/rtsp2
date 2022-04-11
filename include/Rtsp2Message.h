@@ -74,6 +74,7 @@ namespace rtsp2
         const static std::string RTPInfo;
         const static std::string Range;
         const static std::string PipelinedRequests;
+        const static std::string NotifyReason;
         const static std::string Default_USERAGENT;
         const static std::string Default_SERVER;
         const static std::string Default_Public;

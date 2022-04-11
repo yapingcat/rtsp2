@@ -10,6 +10,7 @@
 #include "Rtsp2Response.h"
 #include "Rtsp2Transport.h"
 #include "Rtsp2Authenticate.h"
+#include "Rtsp2HeaderField.h"
 
 namespace rtsp2
 {
@@ -59,6 +60,7 @@ namespace rtsp2
 
         virtual void send(const std::string& msg) = 0;
         
+        std::error_code notifyClient(const std::string& url,NotifyReasonType reasonType);
         std::error_code sendRtspMessage(RtspRequest req);
         std::error_code sendResponse(RtspResponse res);
         std::error_code sendRtpRtcp(int channel,const uint8_t *pkg, std::size_t len);

@@ -42,7 +42,7 @@ namespace rtsp2
         const static std::string SET_PARAMETER;
         const static std::string REDIRECT;
         const static std::string RECORD;
-
+        const static std::string PLAYNOTIFY;
     private:
         std::string url_;
         std::string method_;
@@ -58,6 +58,7 @@ namespace rtsp2
     RtspRequest makeRecord(const std::string &url,RtspMessage::VERSION ver = RtspMessage::RTSP_1_0);
     RtspRequest makeSetParameter(const std::string &url,RtspMessage::VERSION ver = RtspMessage::RTSP_1_0);
     RtspRequest makeGetParameter(const std::string &url,RtspMessage::VERSION ver = RtspMessage::RTSP_1_0);
+    RtspRequest makePlayNotify(const std::string &url,RtspMessage::VERSION ver = RtspMessage::RTSP_1_0);
 
 } // namespace rtsp2
 

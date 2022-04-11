@@ -195,18 +195,12 @@ public:
             
             while (!teardown)
             {
-                //send teardown request to client
-                if(ts > 20000 && startPlay)
-                { 
-                    startPlay = 0;
-                    auto req = makeTeardown(url_);
-                    sendRtspMessage(req);
-                }
                 char *frame;
                 int len;
                 std::tie(frame,len) = source.GetNextFrame();
                 if(frame == nullptr)
                 {
+                    notifyClient(url_,End_of_Stream);
                     break;
                 }
                 if(startPlay)

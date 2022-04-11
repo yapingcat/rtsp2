@@ -74,6 +74,15 @@ namespace rtsp2
         return makeError(RTSP2_ERROR::rtsp2_ok);
     }
 
+    std::error_code ServerHandle::notifyClient(const std::string& url,NotifyReasonType reasonType)
+    {
+        auto req = makePlayNotify(url);
+        req[RtspMessage::NotifyReason] = (reasonType == End_of_Stream ? "end-of-stream" 
+                                            : (reasonType == Media_Properties_Update ? "media-properties-update" 
+                                                : (reasonType == Scale_Change ? "scale-change" : "")));
+        return sendRtspMessage(req);
+    }
+
     std::error_code ServerHandle::sendRtspMessage(RtspRequest req)
     {
         currentReq_ = std::move(req);

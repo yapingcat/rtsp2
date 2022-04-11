@@ -60,6 +60,7 @@ namespace rtsp2
     const std::string RtspMessage::RTPInfo = "RTP-Info";
     const std::string RtspMessage::Range = "Range";
     const std::string RtspMessage::PipelinedRequests = "Pipelined-Requests";
+    const std::string RtspMessage::NotifyReason = "Notify-Reason";
     const std::string RtspMessage::Default_USERAGENT = "rtsp2-client";
     const std::string RtspMessage::Default_SERVER = "rtsp2-server";
     const std::string RtspMessage::Default_Public = "OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE, ANNOUNCE, RECORD, SET_PARAMETER, GET_PARAMETER";
